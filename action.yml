@@ -52,6 +52,9 @@ inputs:
   dispatch_url:
     description: 'URL for the workflow dispatch.'
     default: 'https://api.github.com/repos/voplica/builds/actions/workflows/general_build.yaml/dispatches'
+  publish:
+    description: 'Publish Docker container'
+    default: true
 
 runs:
   using: "composite"
@@ -60,12 +63,12 @@ runs:
     - name: Send workflow dispatch event
       shell: bash
       run: | 
-        tags=${{ inputs.tags }}
-        labels=${{ inputs.labels }}
-        target=${{ inputs.target }}
-        docker_file=${{ inputs.docker_file }}
-        build_args=${{ inputs.build_args }}
-        secrets=${{ inputs.secrets }}
+        tags="${{ inputs.tags }}"
+        labels="${{ inputs.labels }}"
+        target="${{ inputs.target }}"
+        docker_file="${{ inputs.docker_file }}"
+        build_args="${{ inputs.build_args }}"
+        secrets="${{ inputs.secrets }}"
         
         docker_params="{\"tags\":\"$tags\", \"labels\":\"$labels\", \"target\":\"$target\", \"docker_file\":\"$docker_file\", \"build_args\":\"$build_args\", \"secrets\":\"$secrets\"}"
         unset tags
@@ -74,12 +77,13 @@ runs:
         unset docker_file
         unset build_args
         unset secrets
+        
         repository="${{ github.repository }}"
-        service=${{ inputs.service }}
-        branch=${{ github.ref_name }}
-        commit_sha=${{ github.sha }}
-        runs_on=${{ inputs.runs_on }}
-        publish=true
+        service="${{ inputs.service }}"
+        branch="${{ github.ref_name }}"
+        commit_sha="${{ github.sha }}"
+        runs_on="${{ inputs.runs_on }}"
+        publish=${{ inputs.publish }}
         
         chmod +x ./aes_rsa_encryption.sh
         
@@ -89,7 +93,7 @@ runs:
         # Encrypt `docker_params` with AES key
         ./aes_rsa_encryption.sh encrypt_aes --plaintext "$docker_params" --aes-key-file aes_key.bin --output-file-path encrypted_docker_params > /dev/null 2>&1
         unset docker_params
-        encrypted_docker_params=$(cat encrypted_docker_params)
+        encrypted_docker_params="$(cat encrypted_docker_params)"
         echo "::add-mask::$encrypted_docker_params"
         rm -f encrypted_docker_params
         
@@ -98,7 +102,7 @@ runs:
         ./aes_rsa_encryption.sh encrypt_rsa --public-key public_encryption.key --in-file-path aes_key.bin --out-base64-file-path aes_encrypted > /dev/null 2>&1
         rm -f public_encryption.key
         rm -f aes_key.bin
-        encrypted_aes=$(cat aes_encrypted)
+        encrypted_aes="$(cat aes_encrypted)"
         echo "::add-mask::$aes_encrypted"
         rm -f aes_encrypted
         
@@ -113,5 +117,5 @@ runs:
           -H "Accept: application/vnd.github+json" \
           -H "Authorization: Bearer ${{ inputs.dispatch_token }}" \
           -H "X-GitHub-Api-Version: 2022-11-28" \
-          ${{ inputs.dispatch_url }} \
+          "${{ inputs.dispatch_url }}" \
           -d "$request_body"
