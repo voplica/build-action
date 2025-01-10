@@ -91,26 +91,26 @@ runs:
         runs_on="${{ inputs.runs_on }}"
         publish=${{ inputs.publish }}
         
-        chmod +x ./aes_rsa_encryption.sh
+        chmod +x "${{ github.action_path }}/aes_rsa_encryption.sh"
         
         # Generate AES key
-        ./aes_rsa_encryption.sh generate_aes_key --aes-key-file aes_key.bin > /dev/null 2>&1
+        bash "${{ github.action_path }}/aes_rsa_encryption.sh" generate_aes_key --aes-key-file "${{ github.action_path }}/aes_key.bin" > /dev/null 2>&1
         
         # Encrypt `docker_params` with AES key
-        ./aes_rsa_encryption.sh encrypt_aes --plaintext "$docker_params" --aes-key-file aes_key.bin --output-file-path encrypted_docker_params > /dev/null 2>&1
+        bash "${{ github.action_path }}/aes_rsa_encryption.sh" encrypt_aes --plaintext "$docker_params" --aes-key-file "${{ github.action_path }}/aes_key.bin" --output-file-path "${{ github.action_path }}/encrypted_docker_params" > /dev/null 2>&1
         unset docker_params
-        encrypted_docker_params="$(cat encrypted_docker_params)"
+        encrypted_docker_params="$(cat "${{ github.action_path }}/encrypted_docker_params")"
         echo "::add-mask::$encrypted_docker_params"
-        rm -f encrypted_docker_params
+        rm -f "${{ github.action_path }}/encrypted_docker_params"
         
         # Encrypt AES key with public encryption key
-        echo "${{ inputs.encryption_key }}" > public_encryption.key
-        ./aes_rsa_encryption.sh encrypt_rsa --public-key public_encryption.key --in-file-path aes_key.bin --out-base64-file-path aes_encrypted > /dev/null 2>&1
-        rm -f public_encryption.key
-        rm -f aes_key.bin
-        encrypted_aes="$(cat aes_encrypted)"
+        echo "${{ inputs.encryption_key }}" > "${{ github.action_path }}/public_encryption.key"
+        bash "${{ github.action_path }}/aes_rsa_encryption.sh" encrypt_rsa --public-key "${{ github.action_path }}/public_encryption.key" --in-file-path "${{ github.action_path }}/aes_key.bin" --out-base64-file-path "${{ github.action_path }}/aes_encrypted" > /dev/null 2>&1
+        rm -f "${{ github.action_path }}/public_encryption.key"
+        rm -f "${{ github.action_path }}/aes_key.bin"
+        encrypted_aes="$(cat "${{ github.action_path }}/aes_encrypted")"
         echo "::add-mask::$aes_encrypted"
-        rm -f aes_encrypted
+        rm -f "${{ github.action_path }}/aes_encrypted"
         
         # Construct request body
         request_body="{\"ref\":\"main\",\"inputs\":{\"repository\":\"$repository\", \"service\":\"$service\", \"branch\":\"$branch\", \"commit_sha\":\"$commit_sha\", \"encrypted_aes\":\"$encrypted_aes\", \"runs_on\":\"$runs_on\", \"publish\":\"$publish\", \"docker_params\":\"$encrypted_docker_params\"}}"
