@@ -1,0 +1,113 @@
+# Copyright 2025 Voplica LLC
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#      http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+name: 'Voplica Build & Push'
+description: 'An Action to build and push Docker images for Voplica services'
+inputs:
+  service:
+    description: 'Service name to be published. The service will be published under repository namespace.'
+    required: true
+  dispatch_token:
+    description: 'Token for workflow dispatch. Should be: `$GH_BUILDS_WORKFLOW_DISPATCH_TOKEN`'
+    required: true
+  encryption_key:
+    description: 'Public encryption key. Should be: `$GH_BUILDS_RSA_PUBLIC`'
+    required: true
+  tags:
+    description: 'Docker tags for publish. It should either be simple tags representing versions or fully qualified tags. Tags are separated by comma.'
+    required: true
+  build_args:
+    description: 'List of build-time variables. Example: `arg1=val1,arg2=val2`. Build args are separated by comma.'
+    default: ""
+  secrets:
+    description: 'List of secrets to use for the build process. Example: `secret1=secretValue1,GIT_AUTH_TOKEN=mytoken`. Secret args are separated by comma.'
+    default: ""
+  labels:
+    description: 'Docker image labels for publish. Example: `label1=123,label2=abc`. Labels are separated by comma.'
+    default: ""
+  docker_file:
+    description: 'Relative path to Dockerfile for build process. Default: `./${service}.Dockerfile`.'
+    default: ""
+  target:
+    description: 'Sets the target build stage for Docker image.'
+    default: ""
+  runs_on:
+    description: 'JSON Array of labels for a GitHub runner selection. You can use `["ubuntu-latest"]` or similar to execute the run on GitHub servers, or use `["self-hosted"]` to execute the job on custom self-hosted runners. Default: `["self-hosted", "X64"]`.'
+    default: '["self-hosted", "X64"]'
+  dispatch_url:
+    description: 'URL for the workflow dispatch.'
+    default: 'https://api.github.com/repos/voplica/builds/actions/workflows/general_build.yaml/dispatches'
+
+runs:
+  using: "composite"
+  steps:
+
+    - name: Send workflow dispatch event
+      shell: bash
+      run: | 
+        tags=${{ inputs.tags }}
+        labels=${{ inputs.labels }}
+        target=${{ inputs.target }}
+        docker_file=${{ inputs.docker_file }}
+        build_args=${{ inputs.build_args }}
+        secrets=${{ inputs.secrets }}
+        
+        docker_params="{\"tags\":\"$tags\", \"labels\":\"$labels\", \"target\":\"$target\", \"docker_file\":\"$docker_file\", \"build_args\":\"$build_args\", \"secrets\":\"$secrets\"}"
+        unset tags
+        unset labels
+        unset target
+        unset docker_file
+        unset build_args
+        unset secrets
+        repository="${{ github.repository }}"
+        service=${{ inputs.service }}
+        branch=${{ github.ref_name }}
+        commit_sha=${{ github.sha }}
+        runs_on=${{ inputs.runs_on }}
+        publish=true
+        
+        chmod +x ./aes_rsa_encryption.sh
+        
+        # Generate AES key
+        ./aes_rsa_encryption.sh generate_aes_key --aes-key-file aes_key.bin > /dev/null 2>&1
+        
+        # Encrypt `docker_params` with AES key
+        ./aes_rsa_encryption.sh encrypt_aes --plaintext "$docker_params" --aes-key-file aes_key.bin --output-file-path encrypted_docker_params > /dev/null 2>&1
+        unset docker_params
+        encrypted_docker_params=$(cat encrypted_docker_params)
+        echo "::add-mask::$encrypted_docker_params"
+        rm -f encrypted_docker_params
+        
+        # Encrypt AES key with public encryption key
+        echo "${{ inputs.encryption_key }}" > public_encryption.key
+        ./aes_rsa_encryption.sh encrypt_rsa --public-key public_encryption.key --in-file-path aes_key.bin --out-base64-file-path aes_encrypted > /dev/null 2>&1
+        rm -f public_encryption.key
+        rm -f aes_key.bin
+        encrypted_aes=$(cat aes_encrypted)
+        echo "::add-mask::$aes_encrypted"
+        rm -f aes_encrypted
+        
+        # Construct request body
+        request_body="{\"ref\":\"main\",\"inputs\":{\"repository\":\"$repository\", \"service\":\"$service\", \"branch\":\"$branch\", \"commit_sha\":\"$commit_sha\", \"encrypted_aes\":\"$encrypted_aes\", \"runs_on\":\"$runs_on\", \"publish\":\"$publish\", \"docker_params\":\"$encrypted_docker_params\"}}"
+        unset encrypted_docker_params
+        unset aes_encrypted
+
+        # Dispatch workflow to trigger build process
+        curl -L \
+          -X POST \
+          -H "Accept: application/vnd.github+json" \
+          -H "Authorization: Bearer ${{ inputs.dispatch_token }}" \
+          -H "X-GitHub-Api-Version: 2022-11-28" \
+          ${{ inputs.dispatch_url }} \
+          -d "$request_body"
