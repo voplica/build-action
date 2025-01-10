@@ -14,6 +14,10 @@
 
 name: 'Voplica Build & Push'
 description: 'An Action to build and push Docker images for Voplica services'
+branding:
+  icon: 'box'
+  color: 'gray-dark'
+
 inputs:
   service:
     description: 'Service name to be published. The service will be published under repository namespace.'
