@@ -85,8 +85,7 @@ runs:
             if [[ "$skip_escape" == "true" ]]; then
               output+="$value"
             else
-              value="$(escape_double_quotes "$value")"
-              output+="\"$value\""
+              output+="\"$(escape_double_quotes "$value")\""
             fi
           fi
           echo "$output"
@@ -95,12 +94,12 @@ runs:
         # Initialize the JSON object
         docker_params="{"
         # Add fields using the function
-        docker_params=$(add_to_json "tags" "${{ inputs.tags }}" "$docker_params")
-        docker_params=$(add_to_json "labels" "${{ inputs.labels }}" "$docker_params")
-        docker_params=$(add_to_json "target" "${{ inputs.target }}" "$docker_params")
-        docker_params=$(add_to_json "docker_file" "${{ inputs.docker_file }}" "$docker_params")
-        docker_params=$(add_to_json "build_args" "${{ inputs.build_args }}" "$docker_params")
-        docker_params=$(add_to_json "secrets" "${{ inputs.secrets }}" "$docker_params")
+        docker_params=$(add_to_json "tags" '${{ inputs.tags }}' "$docker_params")
+        docker_params=$(add_to_json "labels" '${{ inputs.labels }}' "$docker_params")
+        docker_params=$(add_to_json "target" '${{ inputs.target }}' "$docker_params")
+        docker_params=$(add_to_json "docker_file" '${{ inputs.docker_file }}' "$docker_params")
+        docker_params=$(add_to_json "build_args" '${{ inputs.build_args }}' "$docker_params")
+        docker_params=$(add_to_json "secrets" '${{ inputs.secrets }}' "$docker_params")
         # Close the JSON object
         docker_params+="}"
         
@@ -134,13 +133,13 @@ runs:
         # Initialize the JSON object
         request_body="{\"ref\":\"main\",\"inputs\":{\"repository\":\"${{ github.repository }}\""
         # Add fields using the function
-        request_body=$(add_to_json "service" "${{ inputs.service }}" "$request_body")
-        request_body=$(add_to_json "service" "${{ inputs.service }}" "$request_body")
-        request_body=$(add_to_json "branch" "${{ github.ref_name }}" "$request_body")
-        request_body=$(add_to_json "commit_sha" "${{ github.sha }}" "$request_body")
+        request_body=$(add_to_json "service" '${{ inputs.service }}' "$request_body")
+        request_body=$(add_to_json "service" '${{ inputs.service }}' "$request_body")
+        request_body=$(add_to_json "branch" '${{ github.ref_name }}' "$request_body")
+        request_body=$(add_to_json "commit_sha" '${{ github.sha }}' "$request_body")
         request_body=$(add_to_json "encrypted_aes" "$encrypted_aes" "$request_body")
-        request_body=$(add_to_json "runs_on" "${{ inputs.runs_on }}" "$request_body")
-        request_body=$(add_to_json "publish" "${{ inputs.publish }}" "$request_body" "true") # skip escaping
+        request_body=$(add_to_json "runs_on" '${{ inputs.runs_on }}' "$request_body")
+        request_body=$(add_to_json "publish" '${{ inputs.publish }}' "$request_body" "true") # skip escaping
         request_body=$(add_to_json "docker_params" "$encrypted_docker_params" "$request_body")
         # Close the JSON object
         request_body+="}}"
