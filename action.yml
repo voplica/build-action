@@ -48,7 +48,7 @@ inputs:
     default: ""
   runs_on:
     description: 'JSON Array of labels for a GitHub runner selection. You can use `["ubuntu-latest"]` or similar to execute the run on GitHub servers, or use `["self-hosted"]` to execute the job on custom self-hosted runners. Default: `["self-hosted", "X64"]`.'
-    default: '["self-hosted", "X64"]'
+    default: "[\"self-hosted\", \"X64\"]"
   dispatch_url:
     description: 'URL for the workflow dispatch.'
     default: 'https://api.github.com/repos/voplica/builds/actions/workflows/general_build.yaml/dispatches'
