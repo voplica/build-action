@@ -19,7 +19,7 @@ Parameters:
     run on GitHub servers, or use `["self-hosted"]` to execute the job on custom self-hosted runners. Default: `["self-hosted", "X64"]`.
 
 Example:
-```shell
+```yaml
 name: Build & Push workflow
 on:
   workflow_dispatch:
@@ -50,4 +50,4 @@ jobs:
           runs_on: '["self-hosted", "X64"]'
 ```
 
-###### © 2025 Voplica LLC.
+###### © 2025 Voplica LLC
