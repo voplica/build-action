@@ -116,7 +116,9 @@ runs:
         request_body="{\"ref\":\"main\",\"inputs\":{\"repository\":\"$repository\", \"service\":\"$service\", \"branch\":\"$branch\", \"commit_sha\":\"$commit_sha\", \"encrypted_aes\":\"$encrypted_aes\", \"runs_on\":\"$runs_on\", \"publish\":\"$publish\", \"docker_params\":\"$encrypted_docker_params\"}}"
         unset encrypted_docker_params
         unset aes_encrypted
-
+        
+        echo "Request body: $request_body"
+        
         # Dispatch workflow to trigger build process
         curl -L \
           -X POST \
