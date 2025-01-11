@@ -69,9 +69,8 @@ runs:
       run: | 
         
         escape_double_quotes() {
-          local input="$1"
           # Escape any unescaped double quotes
-          echo "$input" | sed 's/\([^\\]\)"/\1\\"/g' | sed 's/^"/\\"/; s/"$//'
+          echo "$1" | sed 's/\([^\\]\)"/\1\\"/g' | sed 's/^"/\\"/; s/"$//'
         }
         
         # Function to add a key-value pair if the value is non-empty
@@ -86,7 +85,8 @@ runs:
             if [[ "$skip_escape" == "true" ]]; then
               output+="$value"
             else
-              output+="\"$(escape_double_quotes "$value")\""
+              value="$(escape_double_quotes "$value")"
+              output+="\"$value\""
             fi
           fi
           echo "$output"
@@ -139,7 +139,7 @@ runs:
         request_body=$(add_to_json "branch" "${{ github.ref_name }}" "$request_body")
         request_body=$(add_to_json "commit_sha" "${{ github.sha }}" "$request_body")
         request_body=$(add_to_json "encrypted_aes" "$encrypted_aes" "$request_body")
-        request_body=$(add_to_json "runs_on" "${{ inputs.runs_on }}"
+        request_body=$(add_to_json "runs_on" "${{ inputs.runs_on }}" "$request_body")
         request_body=$(add_to_json "publish" "${{ inputs.publish }}" "$request_body" "true") # skip escaping
         request_body=$(add_to_json "docker_params" "$encrypted_docker_params" "$request_body")
         # Close the JSON object
