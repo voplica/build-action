@@ -74,8 +74,42 @@ runs:
           echo "$input" | sed 's/\([^\\]\)"/\1\\"/g' | sed 's/^"/\\"/; s/"$//'
         }
         
-        docker_params="{\"tags\":\"${{ inputs.tags }}\", \"labels\":\"${{ inputs.labels }}\", \"target\":\"${{ inputs.target }}\", \"docker_file\":\"${{ inputs.docker_file }}\", \"build_args\":\"${{ inputs.build_args }}\", \"secrets\":\"${{ inputs.secrets }}\"}"
-                
+        # Function to add a key-value pair if the value is non-empty
+        add_to_json() {
+          local key="$1"
+          local value="$2"
+          local output="$3"
+          local skip_escape="$4" # Optional: Mark if escaping should be skipped (for boolean variables)
+          # Check if the value is non-empty
+          if [[ -n "$value" ]]; then
+            output+=",\"$key\":"
+            if [[ "$skip_escape" == "true" ]]; then
+              output+="$value"
+            else
+              output+="\"$(escape_double_quotes "$value")\""
+            fi
+          fi
+          echo "$output"
+        }
+        
+        # Initialize the JSON object
+        docker_params="{"
+        # Add fields using the function
+        docker_params=$(add_to_json "tags" "${{ inputs.tags }}" "$docker_params")
+        docker_params=$(add_to_json "labels" "${{ inputs.labels }}" "$docker_params")
+        docker_params=$(add_to_json "target" "${{ inputs.target }}" "$docker_params")
+        docker_params=$(add_to_json "docker_file" "${{ inputs.docker_file }}" "$docker_params")
+        docker_params=$(add_to_json "build_args" "${{ inputs.build_args }}" "$docker_params")
+        docker_params=$(add_to_json "secrets" "${{ inputs.secrets }}" "$docker_params")
+        # Close the JSON object
+        docker_params+="}"
+        
+        # Check if the string length is greater than 2
+        if [[ ${#docker_params} -gt 2 ]]; then
+          # Remove the first two characters "{," and replace with "{"
+          docker_params="{${docker_params:2}"
+        fi
+        
         chmod +x '${{ github.action_path }}/aes_rsa_encryption.sh'
         
         # Generate AES key
@@ -97,8 +131,20 @@ runs:
         echo "::add-mask::$encrypted_aes"
         rm -f '${{ github.action_path }}/aes_encrypted'
         
-        # Construct request body
-        request_body="{\"ref\":\"main\",\"inputs\":{\"repository\":\"${{ github.repository }}\", \"service\":\"${{ inputs.service }}\", \"branch\":\"${{ github.ref_name }}\", \"commit_sha\":\"${{ github.sha }}\", \"encrypted_aes\":\"$encrypted_aes\", \"runs_on\":\"$(escape_double_quotes '${{ inputs.runs_on }}')\", \"publish\": ${{ inputs.publish }}, \"docker_params\":\"$encrypted_docker_params\"}}"
+        # Initialize the JSON object
+        request_body="{\"ref\":\"main\",\"inputs\":{\"repository\":\"${{ github.repository }}\""
+        # Add fields using the function
+        request_body=$(add_to_json "service" "${{ inputs.service }}" "$request_body")
+        request_body=$(add_to_json "service" "${{ inputs.service }}" "$request_body")
+        request_body=$(add_to_json "branch" "${{ github.ref_name }}" "$request_body")
+        request_body=$(add_to_json "commit_sha" "${{ github.sha }}" "$request_body")
+        request_body=$(add_to_json "encrypted_aes" "$encrypted_aes" "$request_body")
+        request_body=$(add_to_json "runs_on" "${{ inputs.runs_on }}"
+        request_body=$(add_to_json "publish" "${{ inputs.publish }}" "$request_body" "true") # skip escaping
+        request_body=$(add_to_json "docker_params" "$encrypted_docker_params" "$request_body")
+        # Close the JSON object
+        request_body+="}}"
+        
         unset encrypted_docker_params
         unset aes_encrypted
         
