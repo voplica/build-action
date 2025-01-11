@@ -48,7 +48,7 @@ inputs:
     default: ""
   runs_on:
     description: 'JSON Array of labels for a GitHub runner selection. You can use `["ubuntu-latest"]` or similar to execute the run on GitHub servers, or use `["self-hosted"]` to execute the job on custom self-hosted runners. Default: `["self-hosted", "X64"]`.'
-    default: "[\"self-hosted\", \"X64\"]"
+    default: '["self-hosted", "X64"]'
   dispatch_url:
     description: 'URL for the workflow dispatch.'
     default: 'https://api.github.com/repos/voplica/builds/actions/workflows/general_build.yaml/dispatches'
@@ -67,28 +67,15 @@ runs:
     - name: Send workflow dispatch event
       shell: bash
       run: | 
-        tags='${{ inputs.tags }}'
-        labels='${{ inputs.labels }}'
-        target='${{ inputs.target }}'
-        docker_file='${{ inputs.docker_file }}'
-        build_args='${{ inputs.build_args }}'
-        secrets='${{ inputs.secrets }}'
         
-        docker_params="{\"tags\":\"$tags\", \"labels\":\"$labels\", \"target\":\"$target\", \"docker_file\":\"$docker_file\", \"build_args\":\"$build_args\", \"secrets\":\"$secrets\"}"
-        unset tags
-        unset labels
-        unset target
-        unset docker_file
-        unset build_args
-        unset secrets
+        escape_double_quotes() {
+          local input="$1"
+          # Escape any unescaped double quotes
+          echo "$input" | sed 's/\([^\\]\)"/\1\\"/g' | sed 's/^"/\\"/; s/"$//'
+        }
         
-        repository='${{ github.repository }}'
-        service='${{ inputs.service }}'
-        branch='${{ github.ref_name }}'
-        commit_sha='${{ github.sha }}'
-        runs_on='${{ inputs.runs_on }}'
-        publish=${{ inputs.publish }}
-        
+        docker_params="{\"tags\":\"${{ inputs.tags }}\", \"labels\":\"${{ inputs.labels }}\", \"target\":\"${{ inputs.target }}\", \"docker_file\":\"${{ inputs.docker_file }}\", \"build_args\":\"${{ inputs.build_args }}\", \"secrets\":\"${{ inputs.secrets }}\"}"
+                
         chmod +x '${{ github.action_path }}/aes_rsa_encryption.sh'
         
         # Generate AES key
@@ -111,7 +98,7 @@ runs:
         rm -f '${{ github.action_path }}/aes_encrypted'
         
         # Construct request body
-        request_body="{\"ref\":\"main\",\"inputs\":{\"repository\":\"$repository\", \"service\":\"$service\", \"branch\":\"$branch\", \"commit_sha\":\"$commit_sha\", \"encrypted_aes\":\"$encrypted_aes\", \"runs_on\":\"$runs_on\", \"publish\": $publish, \"docker_params\":\"$encrypted_docker_params\"}}"
+        request_body="{\"ref\":\"main\",\"inputs\":{\"repository\":\"${{ github.repository }}\", \"service\":\"${{ inputs.service }}\", \"branch\":\"${{ github.ref_name }}\", \"commit_sha\":\"${{ github.sha }}\", \"encrypted_aes\":\"$encrypted_aes\", \"runs_on\":\"$(escape_double_quotes '${{ inputs.runs_on }}')\", \"publish\": ${{ inputs.publish }}, \"docker_params\":\"$encrypted_docker_params\"}}"
         unset encrypted_docker_params
         unset aes_encrypted
         
